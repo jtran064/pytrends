@@ -4,13 +4,15 @@ import requests
 import json
 import pandas as pd
 from bs4 import BeautifulSoup
-from pytrends import exceptions
+from . import exceptions
+import logging
 
 if sys.version_info[0] == 2:  # Python 2
     from urllib import quote
 else:  # Python 3
     from urllib.parse import quote
 
+log = logging.getLogger(__name__)
 
 class TrendReq(object):
     """
@@ -31,8 +33,9 @@ class TrendReq(object):
     TOP_CHARTS_URL = 'https://trends.google.com/trends/topcharts/chart'
     SUGGESTIONS_URL = 'https://www.google.com/trends/api/autocomplete/'
 
-    def __init__(self, google_username, google_password, hl='en-US', tz=360, geo='', custom_useragent='PyTrends',
-                 proxies=None):
+    def __init__(self, google_username, google_password, hl='en-US', tz=360, geo='',
+             custom_useragent='Mozilla/5.0 (iPhone; CPU iPhone OS 10_3_1 like Mac OS X) AppleWebKit/603.1.30 (KHTML, like Gecko) Version/10.0 Mobile/14E304 Safari/602.1',
+                 proxies=None, login=True):
         """
         Initialize hard-coded URLs, HTTP headers, and login parameters
         needed to connect to Google Trends, then connect.
@@ -43,6 +46,7 @@ class TrendReq(object):
         self.google_rl = 'You have reached your quota limit. Please try again later.'
         # custom user agent so users know what "new account signin for Google" is
         self.custom_useragent = {'User-Agent': custom_useragent}
+        self.login = login
         self._connect(proxies=proxies)
         self.results = None
 
@@ -73,8 +77,9 @@ class TrendReq(object):
             if u.has_attr('value') and u.has_attr('name'):
                 form_data[u['name']] = u['value']
         # override the inputs with out login and pwd:
-        form_data['Email'] = self.username
-        form_data['Passwd'] = self.password
+        if self.login:
+            form_data['Email'] = self.username
+            form_data['Passwd'] = self.password
         self.ses.post(TrendReq.AUTH_URL, data=form_data)
 
     def _get_data(self, url, method=GET_METHOD, trim_chars=0, **kwargs):
